@@ -1,25 +1,14 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import {readJson,collectJsonFiles} from './common.mjs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readContentIndexes } from './read-content-indexes.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 const serverEntryPath = path.join(distDir, 'server', 'entry-server.js');
 const templatePath = path.join(distDir, 'index.html');
-const pagesContentPath = path.join(rootDir, 'content', 'pages.json');
-const postsContentDir = path.join(rootDir, 'content', 'posts');
-
-const pagesSource = readJson(pagesContentPath);
-const posts = collectJsonFiles(postsContentDir)
-  .map((postPath) => readJson(postPath))
-  .sort((a, b) => String(b.publishedAt ?? '').localeCompare(String(a.publishedAt ?? '')));
-
-const source = {
-  ...pagesSource,
-  posts,
-};
+const source = readContentIndexes();
 
 const template = readFileSync(templatePath, 'utf-8');
 
@@ -292,7 +281,7 @@ function writeRoute(routePath, html) {
 
 function findUpdatedAt(routePath) {
   const matched = findEntryForRoute(routePath);
-  return matched?.entry.updatedAt;
+  return matched?.content.updatedAt ?? matched?.entry.updatedAt;
 }
 
 function buildSitemapAlternateLinks(route) {

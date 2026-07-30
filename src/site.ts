@@ -69,6 +69,18 @@ export function isPostEntry(entry: SiteEntry): entry is SitePost {
   return posts.some((post) => post.id === entry.id);
 }
 
+export function getEntryStatus(entry: SiteEntry, locale: Locale) {
+  return isPostEntry(entry) ? entry.status : entry.locales[locale].status;
+}
+
+export function getEntryUpdatedAt(entry: SiteEntry, locale: Locale) {
+  return isPostEntry(entry) ? entry.updatedAt : entry.locales[locale].updatedAt;
+}
+
+export function isEntryPublished(entry: SiteEntry, locale: Locale) {
+  return getEntryStatus(entry, locale) === 'published';
+}
+
 export function getPathForLocaleAndSlug(locale: Locale, slug: string) {
   return normalizePathname(slug ? `/${locale}/${slug}` : `/${locale}`);
 }
@@ -81,7 +93,7 @@ export function findEntryByLocaleAndSlug(locale: Locale, slug = '') {
   const normalizedSlug = slug.replace(/^\/+|\/+$/g, '');
 
   const entry = getEntries().find(
-    (item) => item.status === 'published' && item.locales[locale].slug === normalizedSlug,
+    (item) => isEntryPublished(item, locale) && item.locales[locale].slug === normalizedSlug,
   );
 
   if (!entry) {
@@ -97,15 +109,17 @@ export function findEntryByLocaleAndSlug(locale: Locale, slug = '') {
 export function getEntrySeo(entry: SiteEntry, locale: Locale): SeoMetadata {
   const content = entry.locales[locale];
 
-  const alternates = locales.map((entryLocale) => ({
-    locale: entryLocale,
-    path: getPathForLocaleAndSlug(entryLocale, entry.locales[entryLocale].slug),
-  }));
+  const alternates = locales
+    .filter((entryLocale) => isEntryPublished(entry, entryLocale))
+    .map((entryLocale) => ({
+      locale: entryLocale,
+      path: getPathForLocaleAndSlug(entryLocale, entry.locales[entryLocale].slug),
+    }));
 
   return {
     title: content.seo.title,
     description: content.seo.description,
-    robots: entry.status === 'published' ? 'index, follow' : 'noindex, nofollow',
+    robots: isEntryPublished(entry, locale) ? 'index, follow' : 'noindex, nofollow',
     lang: getLang(locale),
     canonicalPath: getPathForLocaleAndSlug(locale, content.slug),
     alternates,
@@ -202,7 +216,7 @@ export function resolveRoute(pathname: string): RouteMatch {
 }
 
 export function getPagePath(pageId: SitePage['id'], locale: Locale) {
-  const page = pages.find((entry) => entry.id === pageId && entry.status === 'published');
+  const page = pages.find((entry) => entry.id === pageId && isEntryPublished(entry, locale));
 
   if (!page) {
     return null;
@@ -212,7 +226,7 @@ export function getPagePath(pageId: SitePage['id'], locale: Locale) {
 }
 
 export function getPostPath(postId: SitePost['id'], locale: Locale) {
-  const post = posts.find((entry) => entry.id === postId && entry.status === 'published');
+  const post = posts.find((entry) => entry.id === postId && isEntryPublished(entry, locale));
 
   if (!post) {
     return null;
@@ -231,13 +245,13 @@ export function getPrerenderRoutes() {
       path: '/',
       seo: getRootSeo(),
     },
-    ...getEntries()
-      .filter((entry) => entry.status === 'published')
-      .flatMap((entry) =>
-        locales.map((locale) => ({
+    ...getEntries().flatMap((entry) =>
+      locales
+        .filter((locale) => isEntryPublished(entry, locale))
+        .map((locale) => ({
           path: getPathForLocaleAndSlug(locale, entry.locales[locale].slug),
           seo: getEntrySeo(entry, locale),
         })),
-      ),
+    ),
   ];
 }
