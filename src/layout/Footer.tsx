@@ -18,7 +18,7 @@ export function Footer() {
 
   return (
     <footer className="site-footer">
-      <p>© {new Date().getFullYear()} Bezot Corp. Tous droits réservés.</p>
+      <p>© {new Date().getFullYear()} Bezot Corp. {isFrench ? "Tous droits réservés." : "All rights reserved."}</p>
 
       <nav aria-label={isFrench ? "Liens légaux" : "Legal links"}>
         {privacyPath && (
