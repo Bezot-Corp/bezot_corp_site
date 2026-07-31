@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,28 +14,8 @@ function resolveContentPath(relativePath) {
   return path.join(contentDir, relativePath);
 }
 
-function assertEnabledStatus(value, label) {
-  if (!['enabled', 'disabled'].includes(value)) {
-    throw new Error(`${label} status must be "enabled" or "disabled".`);
-  }
-}
-
-function assertNoDuplicateIndexFields(pageId, locale, localeContent) {
-  const forbiddenFields = ['status', 'updatedAt'];
-
-  for (const field of forbiddenFields) {
-    if (Object.hasOwn(localeContent, field)) {
-      throw new Error(
-        `Page "${pageId}" locale "${locale}" must not define "${field}". Put it in content/pages/${pageId}/index.json.`,
-      );
-    }
-  }
-}
-
 function readPages(pagesSection) {
-  assertEnabledStatus(pagesSection.status, 'pages section');
-
-  if (pagesSection.status === 'disabled') {
+  if (pagesSection.status !== 'enabled') {
     return [];
   }
 
@@ -45,24 +25,11 @@ function readPages(pagesSection) {
 
   return pagesIndex.pageIds.map((pageId) => {
     const pageDir = path.join(pagesDir, pageId);
-    const pageIndexPath = path.join(pageDir, 'index.json');
-
-    if (!existsSync(pageIndexPath)) {
-      throw new Error(`Missing page index: ${pageIndexPath}`);
-    }
-
-    const pageIndex = readJson(pageIndexPath);
+    const pageIndex = readJson(path.join(pageDir, 'index.json'));
 
     const locales = Object.fromEntries(
       Object.entries(pageIndex.locales ?? {}).map(([locale, localeIndex]) => {
-        const localePath = path.join(pageDir, `${locale}.json`);
-
-        if (!existsSync(localePath)) {
-          throw new Error(`Missing locale file for page "${pageId}" and locale "${locale}": ${localePath}`);
-        }
-
-        const localeContent = readJson(localePath);
-        assertNoDuplicateIndexFields(pageId, locale, localeContent);
+        const localeContent = readJson(path.join(pageDir, `${locale}.json`));
 
         return [
           locale,
@@ -82,9 +49,7 @@ function readPages(pagesSection) {
 }
 
 function readBlogPosts(blogSection) {
-  assertEnabledStatus(blogSection.status, 'blog section');
-
-  if (blogSection.status === 'disabled') {
+  if (blogSection.status !== 'enabled') {
     return [];
   }
 
@@ -92,21 +57,11 @@ function readBlogPosts(blogSection) {
   const blogDir = path.dirname(blogIndexPath);
   const blogIndex = readJson(blogIndexPath);
 
-  assertEnabledStatus(blogIndex.status, 'blog index');
-
-  if (blogIndex.status === 'disabled') {
+  if (blogIndex.status !== 'enabled') {
     return [];
   }
 
-  return blogIndex.postPaths.map((postPath) => {
-    const absolutePostPath = path.join(blogDir, postPath);
-
-    if (!existsSync(absolutePostPath)) {
-      throw new Error(`Missing blog post file: ${absolutePostPath}`);
-    }
-
-    return readJson(absolutePostPath);
-  });
+  return blogIndex.postPaths.map((postPath) => readJson(path.join(blogDir, postPath)));
 }
 
 export function readContentIndexes() {
