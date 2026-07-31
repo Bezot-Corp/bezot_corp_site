@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "generate": "pnpm content:validate && node scripts/generate-content.mjs",
+    "generate": "node scripts/pipelines/generate-pipeline.mjs",
     "dev": "pnpm generate && vite",
     "build": "pnpm generate && tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server --emptyOutDir false && node scripts/prerender.mjs",
     "lint": "eslint .",
