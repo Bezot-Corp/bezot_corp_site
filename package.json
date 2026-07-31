@@ -6,7 +6,7 @@
   "scripts": {
     "generate": "node scripts/pipelines/generate-pipeline.mjs",
     "dev": "pnpm generate && vite",
-    "build": "pnpm generate && tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server --emptyOutDir false && node scripts/prerender.mjs",
+    "build": "node scripts/pipelines/build-pipeline.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "content:validate": "node scripts/validate-content-indexes.mjs"
