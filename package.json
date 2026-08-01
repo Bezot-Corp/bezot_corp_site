@@ -4,12 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "generate": "node scripts/pipelines/generate-pipeline.mjs",
-    "dev": "pnpm generate && vite",
-    "build": "node scripts/pipelines/build-pipeline.mjs",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "content:validate": "node scripts/validate-content-indexes.mjs"
+    "dev": "pnpm production && vite preview",
+    "production": "node scripts/orchestrators/production-orchestrator.mjs"
   },
   "dependencies": {
     "react": "^19.2.6",

@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 function run(command, args) {
@@ -24,3 +25,4 @@ run('vite', [
   'false',
 ]);
 run('node', ['scripts/prerender.mjs']);
+rmSync('dist/server', { force: true, recursive: true });

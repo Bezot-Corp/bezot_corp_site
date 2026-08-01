@@ -1,0 +1,37 @@
+{
+  "dist": {
+    "requiredFiles": [
+      "index.html",
+      "sitemap.xml",
+      "robots.txt",
+      "404.html",
+      ".htaccess"
+    ],
+    "forbiddenPaths": [
+      "server"
+    ],
+    "forbiddenPublicText": [
+      "localhost"
+    ]
+  },
+  "sitemap": {
+    "requireLocTargetsToExistInDist": true,
+    "requireHtmlFilesToBeListed": true,
+    "requireCanonicalHost": "https://bezotcorp.com",
+    "excludeFiles": [
+      "404.html"
+    ]
+  },
+  "seo": {
+    "requireTitle": true,
+    "requireMetaDescription": true,
+    "requireCanonical": true,
+    "requireCanonicalMatchesRoute": true,
+    "requireHtmlLang": false,
+    "requireSingleH1": false,
+    "forbidNoindexOnPublishedPages": false,
+    "excludeFiles": [
+      "404.html"
+    ]
+  }
+}
