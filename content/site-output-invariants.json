@@ -33,5 +33,16 @@
     "excludeFiles": [
       "404.html"
     ]
+  },
+  "html": {
+    "requireHtmlLang": true,
+    "requireSingleH1": true,
+    "requireImageAlt": true,
+    "forbidEmptyAriaLabel": true,
+    "forbidFocusableAriaHidden": true,
+    "requireInternalLinksToExist": true,
+    "excludeFiles": [
+      "404.html"
+    ]
   }
 }
