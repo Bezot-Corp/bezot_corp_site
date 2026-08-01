@@ -110,3 +110,83 @@ export function readSitemapLocations(invariants) {
 export function isExcluded(relativePath, excludedFiles) {
   return new Set(excludedFiles ?? []).has(relativePath);
 }
+
+export function extractTags(html, tagName) {
+  return html.match(new RegExp(`<${tagName}(?:\\s|>)[^>]*>`, 'gi')) ?? [];
+}
+
+export function extractAttribute(tag, attributeName) {
+  const pattern = new RegExp(`${attributeName}=["']([^"']*)["']`, 'i');
+  const match = tag.match(pattern);
+
+  return match?.[1]?.trim() ?? '';
+}
+
+export function hasAttribute(tag, attributeName) {
+  return new RegExp(`\\s${attributeName}(\\s|=|>)`, 'i').test(tag);
+}
+
+export function countMatches(html, regex) {
+  return html.match(regex)?.length ?? 0;
+}
+
+export function stripHashAndQuery(value) {
+  return value.split('#')[0].split('?')[0];
+}
+
+export function isExternalHref(href) {
+  return /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//');
+}
+
+export function isAssetHref(href) {
+  return /\.[a-z0-9]+$/i.test(stripHashAndQuery(href));
+}
+
+export function internalHrefToDistPath(href) {
+  const cleanHref = stripHashAndQuery(href);
+
+  if (!cleanHref || cleanHref === '/') {
+    return path.join(DIST_DIR, 'index.html');
+  }
+
+  if (!cleanHref.startsWith('/')) {
+    return null;
+  }
+
+  if (isAssetHref(cleanHref)) {
+    return path.join(DIST_DIR, cleanHref.slice(1));
+  }
+
+  const routePath = cleanHref.endsWith('/') ? cleanHref : `${cleanHref}/`;
+
+  return path.join(DIST_DIR, routePath.slice(1), 'index.html');
+}
+
+export function hasAccessibleText(tag, html, tagName) {
+  const ariaLabel = extractAttribute(tag, 'aria-label');
+  const title = extractAttribute(tag, 'title');
+
+  if (ariaLabel || title) {
+    return true;
+  }
+
+  const tagStart = html.indexOf(tag);
+
+  if (tagStart === -1) {
+    return true;
+  }
+
+  const closeTag = `</${tagName}>`;
+  const tagEnd = html.indexOf(closeTag, tagStart);
+
+  if (tagEnd === -1) {
+    return true;
+  }
+
+  const inner = html
+    .slice(tagStart + tag.length, tagEnd)
+    .replace(/<[^>]+>/g, '')
+    .trim();
+
+  return inner.length > 0;
+}

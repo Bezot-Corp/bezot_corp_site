@@ -15,4 +15,6 @@ run('eslint', ['.']);
 run('node', ['scripts/pipelines/build-pipeline.mjs']);
 run('node', ['scripts/checks/production-dist-checks.mjs']);
 run('node', ['scripts/checks/production-seo-checks.mjs']);
-run('node', ['scripts/checks/production-html-checks.mjs']);
+run('node', ['scripts/checks/html/html-structure-checks.mjs']);
+run('node', ['scripts/checks/html/html-accessibility-checks.mjs']);
+run('node', ['scripts/checks/html/html-reference-checks.mjs']);
