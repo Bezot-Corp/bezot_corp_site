@@ -1,9 +1,13 @@
-import { existsSync } from 'node:fs';
+import {
+  existsSync } from 'node:fs';
 import path from 'node:path';
+import {
+  collectFiles,
+  toPosix,
+} from '../project-file-utils.mjs';
 import {
   CONTENT_DIR,
   DIST_DIR,
-  collectFiles,
   fail,
   finishErrorCollection,
   htmlFileToLocation,
@@ -14,7 +18,6 @@ import {
   readText,
   sitemapLocationToDistFile,
   startErrorCollection,
-  toPosix,
 } from './production-check-utils.mjs';
 
 function assertFile(relativePath) {

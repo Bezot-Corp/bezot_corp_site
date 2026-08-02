@@ -1,7 +1,13 @@
 import path from 'node:path';
 import {
-  DIST_DIR,
+  extractAttribute,
+} from '../project-html-data.mjs';
+import {
   collectFiles,
+  toPosix,
+} from '../project-file-utils.mjs';
+import {
+  DIST_DIR,
   fail,
   finishErrorCollection,
   htmlFileToLocation,
@@ -9,7 +15,6 @@ import {
   readInvariants,
   readText,
   startErrorCollection,
-  toPosix,
 } from './production-check-utils.mjs';
 
 function extractTagContent(html, regex) {
@@ -18,12 +23,6 @@ function extractTagContent(html, regex) {
   return match?.[1]?.trim() ?? '';
 }
 
-function extractAttribute(tag, attributeName) {
-  const pattern = new RegExp(`${attributeName}=["']([^"']+)["']`, 'i');
-  const match = tag.match(pattern);
-
-  return match?.[1]?.trim() ?? '';
-}
 
 function extractMetaContentByName(html, name) {
   const metaTags = html.match(/<meta\s+[^>]*>/gi) ?? [];

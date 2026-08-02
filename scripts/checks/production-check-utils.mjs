@@ -1,27 +1,17 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+
+import {
+  toPosix,
+} from '../project-file-utils.mjs';
+import {
+  extractAttribute,
+} from '../project-html-data.mjs';
 
 export const DIST_DIR = 'dist';
 export const CONTENT_DIR = 'content';
 export const INVARIANTS_PATH = 'content/site-output-invariants.json';
 
-export function toPosix(filePath) {
-  return filePath.split(path.sep).join('/');
-}
-
-export function collectFiles(dirPath) {
-  if (!existsSync(dirPath)) {
-    return [];
-  }
-
-  return readdirSync(dirPath).flatMap((entry) => {
-    const entryPath = path.join(dirPath, entry);
-
-    return statSync(entryPath).isDirectory()
-      ? collectFiles(entryPath)
-      : [entryPath];
-  });
-}
 
 export function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -111,16 +101,6 @@ export function isExcluded(relativePath, excludedFiles) {
   return new Set(excludedFiles ?? []).has(relativePath);
 }
 
-export function extractTags(html, tagName) {
-  return html.match(new RegExp(`<${tagName}(?:\\s|>)[^>]*>`, 'gi')) ?? [];
-}
-
-export function extractAttribute(tag, attributeName) {
-  const pattern = new RegExp(`${attributeName}=["']([^"']*)["']`, 'i');
-  const match = tag.match(pattern);
-
-  return match?.[1]?.trim() ?? '';
-}
 
 export function hasAttribute(tag, attributeName) {
   return new RegExp(`\\s${attributeName}(\\s|=|>)`, 'i').test(tag);

@@ -11,7 +11,7 @@ function run(command, args) {
   }
 }
 
-run('eslint', ['.']);
+run('pnpm', ['exec', 'eslint', '.']);
 run('node', ['scripts/pipelines/build-pipeline.mjs']);
 run('node', ['scripts/checks/production-dist-checks.mjs']);
 run('node', ['scripts/checks/production-seo-checks.mjs']);

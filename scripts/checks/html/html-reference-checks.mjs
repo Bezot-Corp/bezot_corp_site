@@ -1,10 +1,16 @@
-import { existsSync } from 'node:fs';
+import {
+  existsSync } from 'node:fs';
 import path from 'node:path';
 import {
-  DIST_DIR,
-  collectFiles,
   extractAttribute,
   extractTags,
+} from '../../project-html-data.mjs';
+import {
+  collectFiles,
+  toPosix,
+} from '../../project-file-utils.mjs';
+import {
+  DIST_DIR,
   fail,
   finishErrorCollection,
   internalHrefToDistPath,
@@ -13,7 +19,6 @@ import {
   readInvariants,
   readText,
   startErrorCollection,
-  toPosix,
 } from '../production-check-utils.mjs';
 
 export function assertHtmlReference(filePath, html, invariants) {
