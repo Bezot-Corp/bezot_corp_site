@@ -1,0 +1,182 @@
+use std::collections::BTreeMap;
+use std::fs;
+use std::io;
+use std::path::PathBuf;
+
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct BlockDataset {
+    pub version: u32,
+    pub blocks: BTreeMap<String, BlockDefinition>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BlockDefinition {
+    pub rules: BlockRules,
+    pub knowledge: BlockKnowledge,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BlockRules {
+    pub placement: PlacementRule,
+    pub cardinality: CardinalityRule,
+    pub fields: BTreeMap<String, FieldRule>,
+    pub output: OutputNode,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum PlacementRule {
+    PageStart,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum CardinalityRule {
+    AtMostOne,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FieldRule {
+    pub value_type: FieldValueType,
+    pub required: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum FieldValueType {
+    String,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum OutputNode {
+    Element {
+        tag: String,
+        children: Vec<OutputNode>,
+    },
+    Field {
+        name: String,
+    },
+    Conditional {
+        field: String,
+        output: Box<OutputNode>,
+    },
+    Text {
+        value: String,
+    },
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BlockKnowledge {
+    pub purpose: String,
+    pub usage: String,
+    pub good_examples: Vec<BTreeMap<String, String>>,
+    pub bad_uses: Vec<String>,
+}
+
+pub fn load_block_dataset() -> io::Result<BlockDataset> {
+    let path = dataset_path();
+    let source = fs::read_to_string(&path)?;
+
+    let dataset: BlockDataset = ron::from_str(&source).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Invalid block dataset {}: {error}", path.display()),
+        )
+    })?;
+
+    validate_dataset(&dataset)?;
+
+    Ok(dataset)
+}
+
+fn dataset_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("datasets")
+        .join("blocks.ron")
+}
+
+fn validate_dataset(dataset: &BlockDataset) -> io::Result<()> {
+    if dataset.version == 0 {
+        return Err(invalid_data("Block dataset version must be greater than zero"));
+    }
+
+    if dataset.blocks.is_empty() {
+        return Err(invalid_data("Block dataset must define at least one block"));
+    }
+
+    for (block_name, definition) in &dataset.blocks {
+        if block_name.is_empty() {
+            return Err(invalid_data("Block name must not be empty"));
+        }
+
+        if definition.knowledge.purpose.trim().is_empty() {
+            return Err(invalid_data(format!(
+                "Block \"{block_name}\" knowledge purpose must not be empty"
+            )));
+        }
+
+        if definition.knowledge.usage.trim().is_empty() {
+            return Err(invalid_data(format!(
+                "Block \"{block_name}\" knowledge usage must not be empty"
+            )));
+        }
+
+        validate_output_node(
+            block_name,
+            &definition.rules.fields,
+            &definition.rules.output,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn validate_output_node(
+    block_name: &str,
+    fields: &BTreeMap<String, FieldRule>,
+    node: &OutputNode,
+) -> io::Result<()> {
+    match node {
+        OutputNode::Element { tag, children } => {
+            if tag.trim().is_empty() {
+                return Err(invalid_data(format!(
+                    "Block \"{block_name}\" contains an element with an empty tag"
+                )));
+            }
+
+            for child in children {
+                validate_output_node(block_name, fields, child)?;
+            }
+        }
+
+        OutputNode::Field { name } => {
+            assert_known_field(block_name, fields, name)?;
+        }
+
+        OutputNode::Conditional { field, output } => {
+            assert_known_field(block_name, fields, field)?;
+            validate_output_node(block_name, fields, output)?;
+        }
+
+        OutputNode::Text { .. } => {}
+    }
+
+    Ok(())
+}
+
+fn assert_known_field(
+    block_name: &str,
+    fields: &BTreeMap<String, FieldRule>,
+    field_name: &str,
+) -> io::Result<()> {
+    if !fields.contains_key(field_name) {
+        return Err(invalid_data(format!(
+            "Block \"{block_name}\" output references unknown field \"{field_name}\""
+        )));
+    }
+
+    Ok(())
+}
+
+fn invalid_data(message: impl Into<String>) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message.into())
+}

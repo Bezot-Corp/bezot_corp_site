@@ -1,0 +1,62 @@
+(
+    version: 1,
+
+    blocks: {
+        "hero": (
+            rules: (
+                placement: PageStart,
+                cardinality: AtMostOne,
+
+                fields: {
+                    "title": (
+                        value_type: String,
+                        required: true,
+                    ),
+                    "subtitle": (
+                        value_type: String,
+                        required: false,
+                    ),
+                },
+
+                output: Element(
+                    tag: "section",
+                    children: [
+                        Element(
+                            tag: "h1",
+                            children: [
+                                Field(name: "title"),
+                            ],
+                        ),
+                        Conditional(
+                            field: "subtitle",
+                            output: Element(
+                                tag: "p",
+                                children: [
+                                    Field(name: "subtitle"),
+                                ],
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+
+            knowledge: (
+                purpose: "Présenter le sujet principal d’une page.",
+                usage: "Utiliser ce bloc au début d’une page lorsqu’un titre principal et éventuellement une courte introduction sont nécessaires.",
+
+                good_examples: [
+                    {
+                        "title": "Mentions légales",
+                        "subtitle": "Informations relatives au site bezotcorp.com.",
+                    },
+                ],
+
+                bad_uses: [
+                    "Introduire une section secondaire.",
+                    "Répéter un titre principal déjà présent.",
+                    "Afficher les métadonnées d’un article.",
+                ],
+            ),
+        ),
+    },
+)
