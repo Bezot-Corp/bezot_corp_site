@@ -1,28 +1,28 @@
-import {
-  existsSync } from 'node:fs';
-import path from 'node:path';
+import { existsSync } from 'node:fs';
+
 import {
   extractAttribute,
   extractTags,
 } from '../../project-html-data.mjs';
+import { readProjectStructuredData } from '../../project-structured-data.mjs';
 import {
-  collectFiles,
-  toPosix,
-} from '../../project-file-utils.mjs';
-import {
-  DIST_DIR,
   fail,
   finishErrorCollection,
   internalHrefToDistPath,
   isExcluded,
   isExternalHref,
   readInvariants,
-  readText,
   startErrorCollection,
 } from '../production-check-utils.mjs';
 
-export function assertHtmlReference(filePath, html, invariants) {
+function displayHtmlPath(htmlFile) {
+  return `dist/${htmlFile.relativePath}`;
+}
+
+export function assertHtmlReference(htmlFile, invariants) {
+  const html = htmlFile.html;
   const htmlRules = invariants.html;
+  const displayPath = displayHtmlPath(htmlFile);
 
   if (!htmlRules.requireInternalLinksToExist) {
     return;
@@ -38,7 +38,7 @@ export function assertHtmlReference(filePath, html, invariants) {
     const targetPath = internalHrefToDistPath(href);
 
     if (targetPath && !existsSync(targetPath)) {
-      fail(`${toPosix(filePath)} internal link points to missing dist target: ${href} -> ${toPosix(targetPath)}`);
+      fail(`${displayPath} internal link points to missing dist target: ${href} -> ${targetPath}`);
     }
   }
 }
@@ -47,20 +47,19 @@ function runHtmlReferenceChecks() {
   startErrorCollection();
 
   const invariants = readInvariants();
-  const htmlFiles = collectFiles(DIST_DIR).filter((filePath) => filePath.endsWith('.html'));
+  const projectData = readProjectStructuredData();
+  const htmlFiles = projectData.dist.htmlFiles;
 
   if (htmlFiles.length === 0) {
     fail('HTML reference checks require HTML files');
   }
 
-  for (const filePath of htmlFiles) {
-    const relativePath = toPosix(path.relative(DIST_DIR, filePath));
-
-    if (isExcluded(relativePath, invariants.html.excludeFiles)) {
+  for (const htmlFile of htmlFiles) {
+    if (isExcluded(htmlFile.relativePath, invariants.html.excludeFiles)) {
       continue;
     }
 
-    assertHtmlReference(filePath, readText(filePath), invariants);
+    assertHtmlReference(htmlFile, invariants);
   }
 
   finishErrorCollection('HTML reference checks');

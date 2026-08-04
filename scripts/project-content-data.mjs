@@ -2,11 +2,6 @@ import path from 'node:path';
 
 import { projectPaths } from './project-config.mjs';
 import {
-  collectFiles,
-  fileExists,
-} from './project-file-utils.mjs';
-import {
-  fileRecord,
   readJsonResource,
 } from './project-resource-readers.mjs';
 
@@ -92,17 +87,14 @@ function readContentBlogData(contentIndex) {
   };
 }
 
-export function readContentData() {
-  const allFilePaths = collectFiles(contentDir);
+export function readContentData(projectFiles) {
   const index = readJsonResource(contentDir, projectPaths.contentIndex);
 
   return {
     rootDir: contentDir,
-    exists: fileExists(contentDir),
-    files: allFilePaths.map((filePath) => fileRecord(contentDir, filePath)),
-    jsonFiles: allFilePaths
-      .filter((filePath) => filePath.endsWith('.json'))
-      .map((filePath) => fileRecord(contentDir, filePath)),
+    exists: projectFiles.content.exists,
+    files: projectFiles.content.files,
+    jsonFiles: projectFiles.content.jsonFiles,
     index,
     pages: readContentPagesData(index),
     blog: readContentBlogData(index),

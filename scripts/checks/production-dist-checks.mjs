@@ -1,38 +1,55 @@
-import {
-  existsSync } from 'node:fs';
 import path from 'node:path';
+
+import { projectPaths } from '../project-config.mjs';
 import {
-  collectFiles,
   toPosix,
 } from '../project-file-utils.mjs';
+import { readProjectStructuredData } from '../project-structured-data.mjs';
 import {
-  CONTENT_DIR,
-  DIST_DIR,
   fail,
   finishErrorCollection,
-  htmlFileToLocation,
   isExcluded,
   readInvariants,
-  readJson,
-  readSitemapLocations,
   readText,
   sitemapLocationToDistFile,
   startErrorCollection,
 } from './production-check-utils.mjs';
 
-function assertFile(relativePath) {
-  const filePath = path.join(DIST_DIR, relativePath);
+function normalizedPath(filePath) {
+  return toPosix(path.resolve(filePath));
+}
 
-  if (!existsSync(filePath)) {
-    fail(`Missing required production file: ${toPosix(filePath)}`);
+function hasFile(filePaths, filePath) {
+  return filePaths.has(normalizedPath(filePath));
+}
+
+function displayPath(filePath) {
+  return toPosix(path.relative(projectPaths.distDir, filePath)).startsWith('..')
+    ? toPosix(filePath)
+    : `dist/${toPosix(path.relative(projectPaths.distDir, filePath))}`;
+}
+
+function routeLocation(route, canonicalHost) {
+  if (!route) {
+    return null;
+  }
+
+  return `${canonicalHost.replace(/\/$/, '')}${route}`;
+}
+
+function assertFile(relativePath, distFilePaths) {
+  const filePath = path.join(projectPaths.distDir, relativePath);
+
+  if (!hasFile(distFilePaths, filePath)) {
+    fail(`Missing required production file: ${displayPath(filePath)}`);
   }
 }
 
-function assertForbiddenPathMissing(relativePath) {
-  const filePath = path.join(DIST_DIR, relativePath);
+function assertForbiddenPathMissing(relativePath, distFilePaths) {
+  const filePath = path.join(projectPaths.distDir, relativePath);
 
-  if (existsSync(filePath)) {
-    fail(`Forbidden production path exists: ${toPosix(filePath)}`);
+  if (hasFile(distFilePaths, filePath)) {
+    fail(`Forbidden production path exists: ${displayPath(filePath)}`);
   }
 }
 
@@ -42,14 +59,14 @@ function assertNotIncludes(value, forbidden, label) {
   }
 }
 
-function assertSitemapTargetsExist(locations, invariants) {
+function assertSitemapTargetsExist(locations, invariants, distFilePaths) {
   for (const location of locations) {
     const targetFile = sitemapLocationToDistFile(
       location,
       invariants.sitemap.requireCanonicalHost,
     );
 
-    if (!existsSync(targetFile)) {
+    if (!hasFile(distFilePaths, targetFile)) {
       fail(
         `sitemap.xml points to a missing HTML file: ${location} -> ${toPosix(targetFile)}`,
       );
@@ -60,49 +77,42 @@ function assertSitemapTargetsExist(locations, invariants) {
 function assertHtmlFilesAreListedInSitemap(htmlFiles, locations, invariants) {
   const excludedFiles = invariants.sitemap.excludeFiles ?? [];
 
-  for (const filePath of htmlFiles) {
-    const relativePath = toPosix(path.relative(DIST_DIR, filePath));
-
-    if (isExcluded(relativePath, excludedFiles)) {
+  for (const htmlFile of htmlFiles) {
+    if (isExcluded(htmlFile.relativePath, excludedFiles)) {
       continue;
     }
 
-    const location = htmlFileToLocation(
-      filePath,
+    const location = routeLocation(
+      htmlFile.route,
       invariants.sitemap.requireCanonicalHost,
     );
 
     if (location && !locations.has(location)) {
-      fail(`HTML file is missing from sitemap.xml: ${toPosix(filePath)} -> ${location}`);
+      fail(`HTML file is missing from sitemap.xml: ${displayPath(htmlFile.filePath)} -> ${location}`);
     }
   }
 }
 
 function routeOutputPath(locale, slug) {
   if (!slug) {
-    return path.join(DIST_DIR, locale, 'index.html');
+    return path.join(projectPaths.distDir, locale, 'index.html');
   }
 
-  return path.join(DIST_DIR, locale, slug, 'index.html');
+  return path.join(projectPaths.distDir, locale, slug, 'index.html');
 }
 
-function assertPagesMatchContentIndexes() {
-  const contentIndex = readJson(path.join(CONTENT_DIR, 'index.json'));
-  const pagesSection = contentIndex.sections?.pages;
+function assertPagesMatchContentIndexes(projectData, distFilePaths) {
+  const pagesSection = projectData.content.index.data?.sections?.pages;
 
   if (!pagesSection || pagesSection.status !== 'enabled') {
     return;
   }
 
-  const pagesIndex = readJson(path.join(CONTENT_DIR, pagesSection.indexPath));
-  const pageIds = pagesIndex.pageIds ?? [];
-  for (const pageId of pageIds) {
-    const pageIndexPath = path.join(CONTENT_DIR, 'pages', pageId, 'index.json');
-    const pageIndex = readJson(pageIndexPath);
-    const localeEntries = Object.entries(pageIndex.locales ?? {});
+  for (const pageIndex of projectData.content.pages.pageIndexes) {
+    const localeEntries = Object.entries(pageIndex.data?.locales ?? {});
 
     if (localeEntries.length === 0) {
-      fail(`${toPosix(pageIndexPath)} must declare at least one locale`);
+      fail(`${toPosix(pageIndex.relativePath)} must declare at least one locale`);
     }
 
     const publishedLocales = localeEntries
@@ -111,20 +121,20 @@ function assertPagesMatchContentIndexes() {
 
     if (publishedLocales.length === 0) {
       fail(
-        `${toPosix(pageIndexPath)} must declare at least one published locale or be removed from pages/index.json`,
+        `${toPosix(pageIndex.relativePath)} must declare at least one published locale or be removed from pages/index.json`,
       );
     }
 
     for (const [locale, localeConfig] of localeEntries) {
       const outputPath = routeOutputPath(locale, localeConfig.slug);
-      const outputExists = existsSync(outputPath);
+      const outputExists = hasFile(distFilePaths, outputPath);
 
       if (localeConfig.status === 'published' && !outputExists) {
-        fail(`Published page is missing from dist: ${pageId}/${locale} -> ${toPosix(outputPath)}`);
+        fail(`Published page is missing from dist: ${pageIndex.pageId}/${locale} -> ${displayPath(outputPath)}`);
       }
 
       if (localeConfig.status !== 'published' && outputExists) {
-        fail(`Non-published page exists in dist: ${pageId}/${locale} -> ${toPosix(outputPath)}`);
+        fail(`Non-published page exists in dist: ${pageIndex.pageId}/${locale} -> ${displayPath(outputPath)}`);
       }
     }
   }
@@ -132,12 +142,6 @@ function assertPagesMatchContentIndexes() {
 
 function postSlugFromPath(postPath) {
   return path.basename(postPath, '.json');
-}
-
-function postDateFromPath(postPath) {
-  const parts = toPosix(postPath).split('/');
-
-  return parts.length >= 3 ? parts[1] : null;
 }
 
 function candidatePostOutputPaths(locale, postPath, post, localeConfig) {
@@ -148,37 +152,32 @@ function candidatePostOutputPaths(locale, postPath, post, localeConfig) {
   ];
 }
 
-function assertBlogPostsMatchContentIndexes() {
-  const contentIndex = readJson(path.join(CONTENT_DIR, 'index.json'));
-  const blogSection = contentIndex.sections?.blog;
+function assertBlogPostsMatchContentIndexes(projectData, distFilePaths) {
+  const blogSection = projectData.content.index.data?.sections?.blog;
 
   if (!blogSection || blogSection.status !== 'enabled') {
     return;
   }
 
-  const blogIndex = readJson(path.join(CONTENT_DIR, blogSection.indexPath));
-  const postPaths = blogIndex.postPaths ?? [];
-
-  for (const postPath of postPaths) {
-    const absolutePostPath = path.join(CONTENT_DIR, 'blog', postPath);
-    const post = readJson(absolutePostPath);
-    const localeEntries = Object.entries(post.locales ?? {});
+  for (const postResource of projectData.content.blog.posts) {
+    const post = postResource.data;
+    const localeEntries = Object.entries(post?.locales ?? {});
 
     for (const [locale, localeConfig] of localeEntries) {
       const status = localeConfig.status ?? post.status;
       const isPublished = status === 'published';
-      const candidates = candidatePostOutputPaths(locale, postPath, post, localeConfig);
-      const existingCandidates = candidates.filter((candidatePath) => existsSync(candidatePath));
+      const candidates = candidatePostOutputPaths(locale, postResource.postPath, post, localeConfig);
+      const existingCandidates = candidates.filter((candidatePath) => hasFile(distFilePaths, candidatePath));
 
       if (isPublished && existingCandidates.length === 0) {
         fail(
-          `Published blog post is missing from dist: ${postPath}/${locale} -> expected one of ${candidates.map(toPosix).join(', ')}`,
+          `Published blog post is missing from dist: ${postResource.postPath}/${locale} -> expected one of ${candidates.map(displayPath).join(', ')}`,
         );
       }
 
       if (!isPublished && existingCandidates.length > 0) {
         fail(
-          `Non-published blog post exists in dist: ${postPath}/${locale} -> ${existingCandidates.map(toPosix).join(', ')}`,
+          `Non-published blog post exists in dist: ${postResource.postPath}/${locale} -> ${existingCandidates.map(displayPath).join(', ')}`,
         );
       }
     }
@@ -189,52 +188,53 @@ function runProductionDistChecks() {
   startErrorCollection();
 
   const invariants = readInvariants();
+  const projectData = readProjectStructuredData();
+  const distFiles = projectData.files.dist.files;
+  const distFilePaths = new Set(distFiles.map((file) => normalizedPath(file.filePath)));
 
-  if (!existsSync(DIST_DIR)) {
+  if (!projectData.files.dist.exists) {
     fail('Missing production directory: dist');
   }
 
   for (const requiredFile of invariants.dist.requiredFiles) {
-    assertFile(requiredFile);
+    assertFile(requiredFile, distFilePaths);
   }
 
   for (const forbiddenPath of invariants.dist.forbiddenPaths) {
-    assertForbiddenPathMissing(forbiddenPath);
+    assertForbiddenPathMissing(forbiddenPath, distFilePaths);
   }
 
-  const files = collectFiles(DIST_DIR);
-
-  const publicTextFiles = files.filter((filePath) =>
-    ['.html', '.xml', '.txt'].includes(path.extname(filePath)) ||
-    path.basename(filePath) === '.htaccess',
+  const publicTextFiles = distFiles.filter((file) =>
+    ['.html', '.xml', '.txt'].includes(file.extension) ||
+    path.basename(file.filePath) === '.htaccess',
   );
 
-  for (const filePath of publicTextFiles) {
-    const content = readText(filePath);
+  for (const file of publicTextFiles) {
+    const content = readText(file.filePath);
 
     for (const forbiddenText of invariants.dist.forbiddenPublicText) {
-      assertNotIncludes(content, forbiddenText, toPosix(filePath));
+      assertNotIncludes(content, forbiddenText, displayPath(file.filePath));
     }
   }
 
-  const htmlFiles = files.filter((filePath) => filePath.endsWith('.html'));
+  const htmlFiles = projectData.dist.htmlFiles;
 
   if (htmlFiles.length === 0) {
     fail('Production dist must contain HTML files');
   }
 
-  const sitemapLocations = readSitemapLocations(invariants);
+  const sitemapLocations = new Set(projectData.dist.sitemap.locations);
 
   if (invariants.sitemap.requireLocTargetsToExistInDist) {
-    assertSitemapTargetsExist(sitemapLocations, invariants);
+    assertSitemapTargetsExist(sitemapLocations, invariants, distFilePaths);
   }
 
   if (invariants.sitemap.requireHtmlFilesToBeListed) {
     assertHtmlFilesAreListedInSitemap(htmlFiles, sitemapLocations, invariants);
   }
 
-  assertPagesMatchContentIndexes();
-  assertBlogPostsMatchContentIndexes();
+  assertPagesMatchContentIndexes(projectData, distFilePaths);
+  assertBlogPostsMatchContentIndexes(projectData, distFilePaths);
 
   finishErrorCollection('Production dist checks');
 
