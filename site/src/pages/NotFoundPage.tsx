@@ -23,12 +23,12 @@ export function NotFoundPage({ locale }: Props) {
           <h1>{isFrench ? "Page introuvable" : "Page not found"}</h1>
           <p>
             {isFrench
-              ? "Cette URL ne correspond a aucune page publiee."
+              ? "Cette URL ne correspond à aucune page publiée."
               : "This URL does not match any published page."}
           </p>
           <p>
             <Link to={`/${locale}`}>
-              {isFrench ? "Retour a l'accueil" : "Back to home"}
+              {isFrench ? "Retour à l'accueil" : "Back to home"}
             </Link>
           </p>
         </section>
