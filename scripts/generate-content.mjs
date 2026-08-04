@@ -1,31 +1,25 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import {readJson,collectJsonFiles} from './common.mjs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { isJSDocCommentContainingNode } from 'typescript';
+import { readContentIndexes, rootDir } from './read-content-indexes.mjs';
 
-const pagesInputPath = 'content/pages.json';
-const postsInputDir = 'content/posts';
-const outputPath = 'src/generated/site.ts';
+const generatedDir = path.join(rootDir, 'src', 'generated');
+const outputPath = path.join(generatedDir, 'site.ts');
 
-const source = readJson(pagesInputPath);
+const source = readContentIndexes();
 
-const posts = collectJsonFiles(postsInputDir)
-  .map(readJson)
-  .sort((a, b) => String(b.publishedAt ?? '').localeCompare(String(a.publishedAt ?? '')));
-
-mkdirSync('src/generated', { recursive: true });
+mkdirSync(generatedDir, { recursive: true });
 
 const output = `// This file is generated. Do not edit manually.
 
 export const site = ${JSON.stringify(source.site, null, 2)} as const;
 
-export const redirects = ${JSON.stringify(source.redirects ?? [], null, 2)} as const;
+export const redirects = ${JSON.stringify(source.redirects, null, 2)} as const;
 
-export const gone = ${JSON.stringify(source.gone ?? [], null, 2)} as const;
+export const gone = ${JSON.stringify(source.gone, null, 2)} as const;
 
 export const pages = ${JSON.stringify(source.pages, null, 2)} as const;
 
-export const posts = ${JSON.stringify(posts, null, 2)} as const;
+export const posts = ${JSON.stringify(source.posts, null, 2)} as const;
 
 export type GeneratedSite = typeof site;
 export type GeneratedPage = (typeof pages)[number];
@@ -37,4 +31,4 @@ export type GeneratedBlock =
 `;
 
 writeFileSync(outputPath, output);
-console.log(`Generated ${outputPath}`);
+console.log('Generated src/generated/site.ts');
