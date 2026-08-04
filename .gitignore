@@ -40,3 +40,7 @@ coverage
 
 # Generated files
 src/generated/
+
+**/target/
+
+prebuild/

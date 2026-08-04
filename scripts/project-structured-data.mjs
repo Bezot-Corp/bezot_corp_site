@@ -3,14 +3,18 @@ import { fileURLToPath } from 'node:url';
 import { projectRootDir } from './project-config.mjs';
 import { readContentData } from './project-content-data.mjs';
 import { readDistData } from './project-dist-data.mjs';
+import { readProjectFilesData } from './project-files-data.mjs';
 
 const scriptPath = fileURLToPath(import.meta.url);
 
 export function readProjectStructuredData() {
+  const files = readProjectFilesData();
+
   return {
     rootDir: projectRootDir,
-    content: readContentData(),
-    dist: readDistData(),
+    files,
+    content: readContentData(files),
+    dist: readDistData(files),
   };
 }
 
