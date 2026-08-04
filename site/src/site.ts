@@ -1,4 +1,4 @@
-import { pages, posts, site } from './generated/site';
+import { pages, posts, site } from '../generated/site';
 import { defaultLocale, isLocale, locales, type Locale } from './i18n/locales';
 
 export const siteUrl = site.baseUrl;
