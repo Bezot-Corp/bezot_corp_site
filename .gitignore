@@ -39,7 +39,7 @@ coverage
 .eslintcache
 
 # Generated files
-src/generated/
+**/generated/
 
 **/target/
 

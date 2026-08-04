@@ -1,4 +1,4 @@
-import { site } from '../generated/site';
+import { site } from '../../generated/site';
 
 export const locales = site.locales;
 

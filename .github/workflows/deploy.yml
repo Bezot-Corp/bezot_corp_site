@@ -15,7 +15,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 11
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -37,5 +37,5 @@ jobs:
           password: ${{ secrets.OVH_FTP_PASSWORD }}
           protocol: ftp
           port: 21
-          local-dir: ./dist/
+          local-dir: ./site/dist/
           server-dir: ./www/
